@@ -1,133 +1,37 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Графік Прибирань</title>
-  <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      background: #f0f4f8;
-      margin: 0;
-      padding: 20px;
-    }
+<script>
+  // Firebase конфіг
+  const firebaseConfig = {
+    apiKey: "AIzaSyDTqQbagHh-HLAdNI56wEsgayUSNcmDJyg",
+    authDomain: "webkv-6a265.firebaseapp.com",
+    projectId: "webkv-6a265",
+    storageBucket: "webkv-6a265.firebasestorage.app",
+    messagingSenderId: "261103939337",
+    appId: "1:261103939337:web:7981bbce2a277693026dd8",
+    measurementId: "G-3QQR2K785N"
+  };
 
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: #fff;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
+  // Ініціалізація Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-    h2 {
-      text-align: center;
-      color: #4CAF50;
-      font-size: 2.5rem;
-    }
+  const tableBody = document.getElementById('tableBody');
+  const entries = [];
 
-    #successMessage {
-      display: none;
-      background-color: #4CAF50;
-      color: white;
-      text-align: center;
-      padding: 10px;
-      margin-bottom: 20px;
-      border-radius: 5px;
-    }
+  const startDate = new Date('2025-07-10'); // початок (оновлюй за потреби)
+  const daysToGenerate = 90; // три місяці
+  const rooms = ['Кімната 1', 'Кімната 2', 'Кімната 3'];
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
+  for (let i = 0; i < daysToGenerate; i += 2) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    const formattedDate = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+    const room = rooms[(i / 2) % rooms.length];
+    entries.push({ date: formattedDate, room: room });
+  }
 
-    th, td {
-      border: 1px solid #ccc;
-      padding: 12px;
-      text-align: center;
-    }
-
-    th {
-      background-color: #4CAF50;
-      color: white;
-    }
-
-    input[type="submit"] {
-      background-color: #4CAF50;
-      color: white;
-      padding: 12px 24px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      margin-top: 20px;
-      cursor: pointer;
-    }
-
-    input[type="submit"]:hover {
-      background-color: #45a049;
-    }
-  </style>
-
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-</head>
-<body>
-  <div class="container">
-    <div id="successMessage">Зміни збережено!</div>
-    <h2>Графік Прибирань</h2>
-    <form id="cleaningForm">
-      <table>
-        <thead>
-          <tr>
-            <th>Дата</th>
-            <th>Кімната</th>
-            <th>Прибрано</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody">
-          <!-- Рядки генеруються JavaScript -->
-        </tbody>
-      </table>
-      <input type="submit" value="Зберегти" />
-    </form>
-  </div>
-
-  <script>
-    // Firebase конфіг
-    const firebaseConfig = {
-      apiKey: "AIzaSyDTqQbagHh-HLAdNI56wEsgayUSNcmDJyg",
-      authDomain: "webkv-6a265.firebaseapp.com",
-      projectId: "webkv-6a265",
-      storageBucket: "webkv-6a265.firebasestorage.app",
-      messagingSenderId: "261103939337",
-      appId: "1:261103939337:web:7981bbce2a277693026dd8",
-      measurementId: "G-3QQR2K785N"
-    };
-
-    // Ініціалізація
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    const tableBody = document.getElementById('tableBody');
-    const entries = [];
-
-    const startDate = new Date('2025-05-13'); // Початкова дата
-    const daysToGenerate = 60; // 2 місяці
-    const rooms = ['Кімната 1', 'Кімната 2', 'Кімната 3'];
-
-    for (let i = 0; i < daysToGenerate; i += 2) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);
-      const formattedDate = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
-      const room = rooms[(i / 2) % rooms.length];
-      entries.push({ date: formattedDate, room: room });
-    }
-
-    // Створення рядків таблиці
-    entries.forEach(async (entry) => {
+  // Генеруємо таблицю
+  async function generateTable() {
+    for (const entry of entries) {
       const row = document.createElement('tr');
       const checkboxId = `${entry.date}_${entry.room}`.replace(/\s+/g, '_');
       row.innerHTML = `
@@ -137,33 +41,43 @@
       `;
       tableBody.appendChild(row);
 
-      // Завантаження статусу з Firestore
+      // Завантаження з Firebase
       const docRef = db.collection("cleaning_schedule").doc(checkboxId);
       const docSnap = await docRef.get();
       if (docSnap.exists) {
         document.getElementById(checkboxId).checked = docSnap.data().is_cleaned;
       }
-    });
-
-    // Збереження
-    document.getElementById('cleaningForm').addEventListener('submit', async function (event) {
-      event.preventDefault();
-      for (const entry of entries) {
-        const checkboxId = `${entry.date}_${entry.room}`.replace(/\s+/g, '_');
-        const isCleaned = document.getElementById(checkboxId).checked;
-        const docRef = db.collection("cleaning_schedule").doc(checkboxId);
-        await docRef.set({ is_cleaned: isCleaned });
-      }
-      showSuccessMessage();
-    });
-
-    function showSuccessMessage() {
-      const msg = document.getElementById('successMessage');
-      msg.style.display = 'block';
-      setTimeout(() => {
-        msg.style.display = 'none';
-      }, 3000);
     }
-  </script>
-</body>
-</html>
+  }
+
+  generateTable(); // викликаємо генерацію
+
+  // Обробка збереження
+  document.getElementById('cleaningForm').addEventListener('submit', async function (event) {
+    event.preventDefault();
+
+    const savePromises = entries.map(entry => {
+      const checkboxId = `${entry.date}_${entry.room}`.replace(/\s+/g, '_');
+      const isCleaned = document.getElementById(checkboxId).checked;
+      const docRef = db.collection("cleaning_schedule").doc(checkboxId);
+      return docRef.set({ is_cleaned: isCleaned });
+    });
+
+    // Чекаємо на ВСЕ збереження
+    try {
+      await Promise.all(savePromises);
+      showSuccessMessage();
+    } catch (error) {
+      alert('Помилка при збереженні: ' + error.message);
+      console.error(error);
+    }
+  });
+
+  function showSuccessMessage() {
+    const msg = document.getElementById('successMessage');
+    msg.style.display = 'block';
+    setTimeout(() => {
+      msg.style.display = 'none';
+    }, 3000);
+  }
+</script>
