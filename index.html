@@ -1,120 +1,8 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Графік Прибирань</title>
-    <style>
-        /* Загальний стиль */
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background: #f4f7fc;
-            color: #333;
-        }
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
-        /* Заголовок */
-        h2 {
-            text-align: center;
-            margin: 20px 0;
-            font-size: 2.5rem;
-            color: #4CAF50;
-        }
-
-        /* Контейнер для всього контенту */
-        .container {
-            width: 80%;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Стиль для повідомлення */
-        #successMessage {
-            display: block;
-            padding: 10px;
-            background-color: #4CAF50;
-            color: white;
-            margin-bottom: 20px;
-            text-align: center;
-            visibility: hidden;
-            opacity: 0;
-            border-radius: 5px;
-            transition: opacity 0.5s ease-in-out, visibility 0s 0.5s;
-        }
-
-        /* Стиль таблиці */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-
-        th, td {
-            padding: 12px 15px;
-            text-align: center;
-            border: 1px solid #ddd;
-        }
-
-        th {
-            background-color: #4CAF50;
-            color: white;
-            font-size: 1.1rem;
-        }
-
-        td {
-            background-color: #f9f9f9;
-            font-size: 1rem;
-        }
-
-        /* Стиль для чекбоксів */
-        input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            margin: 0;
-        }
-
-        /* Стиль для кнопки */
-        input[type="submit"] {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            margin-top: 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        input[type="submit"]:hover {
-            background-color: #45a049;
-        }
-
-        /* Мобільна адаптація */
-        @media screen and (max-width: 600px) {
-            .container {
-                width: 95%;
-            }
-
-            h2 {
-                font-size: 2rem;
-            }
-
-            table {
-                font-size: 0.9rem;
-            }
-        }
-    </style>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-
+    window.addEventListener('DOMContentLoaded', async () => {
         const firebaseConfig = {
             apiKey: "AIzaSyDTqQbagHh-HLAdNI56wEsgayUSNcmDJyg",
             authDomain: "webkv-6a265.firebaseapp.com",
@@ -128,7 +16,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const startDate = new Date('2025-05-13'); // Початок графіку
+        const startDate = new Date('2025-05-13');
         const daysToGenerate = 60;
         const entries = [];
         const rooms = ['Кімната 1', 'Кімната 2', 'Кімната 3'];
@@ -138,15 +26,12 @@
             date.setDate(startDate.getDate() + i);
             const roomIndex = (i / 2) % rooms.length;
             const room = rooms[roomIndex];
-
-            // Форматування дати у форматі DD.MM.YYYY
             const dateStr = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
-            
             entries.push({ date: dateStr, room: room });
         }
 
         const tableBody = document.querySelector('tbody');
-        entries.forEach(entry => {
+        for (const entry of entries) {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${entry.date}</td>
@@ -157,12 +42,15 @@
 
             const checkbox = document.getElementById(`${entry.date}_${entry.room}`);
             const docRef = doc(db, 'cleaning_schedule', `${entry.date}_${entry.room}`);
-            getDoc(docRef).then(docSnap => {
+            try {
+                const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     checkbox.checked = docSnap.data().is_cleaned;
                 }
-            });
-        });
+            } catch (error) {
+                console.error("Error getting document:", error);
+            }
+        }
 
         document.getElementById('cleaningForm').addEventListener('submit', function(event) {
             event.preventDefault();
@@ -176,7 +64,7 @@
                 }).then(() => {
                     showSuccessMessage();
                 }).catch((error) => {
-                    console.error("Error adding document: ", error);
+                    console.error("Error saving document: ", error);
                 });
             });
         });
@@ -191,27 +79,5 @@
                 successMessage.style.visibility = 'hidden';
             }, 3000);
         }
-    </script>
-</head>
-<body>
-    <div class="container">
-        <div id="successMessage">Зміни збережено!</div>
-        <h2>Графік Прибирань</h2>
-        <form id="cleaningForm">
-            <table id="scheduleTable">
-                <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Кімната</th>
-                        <th>Прибрано</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Рядки додаються динамічно -->
-                </tbody>
-            </table>
-            <input type="submit" value="Зберегти">
-        </form>
-    </div>
-</body>
-</html>
+    });
+</script>
