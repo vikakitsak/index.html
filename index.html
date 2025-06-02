@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Графік Прибирань</title>
   <style>
     body {
@@ -79,27 +79,44 @@
             <th>Прибрано</th>
           </tr>
         </thead>
-        <tbody id="tableBody">
-          <!-- Заповнюється JavaScript -->
-        </tbody>
+        <tbody id="tableBody"></tbody>
       </table>
       <input type="submit" value="Зберегти" />
     </form>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+
+    // Встав тут свій firebaseConfig:
+    const firebaseConfig = {
+      apiKey: "AIzaSyCGXhE9oPEDsQK-kXhbhEDQH4Yd8IgcRUg",
+      authDomain: "shift-schedule-60a23.firebaseapp.com",
+      projectId: "shift-schedule-60a23",
+      storageBucket: "shift-schedule-60a23.firebasestorage.app",
+      messagingSenderId: "824320832833",
+      appId: "1:824320832833:web:43f47ca280f34d55b2ddc0",
+      measurementId: "G-1FMVTD5X2J"
+    };
+
+    // Ініціалізація Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
     const tableBody = document.getElementById("tableBody");
     const entries = [];
     const rooms = ["Кімната 1", "Кімната 2", "Кімната 3"];
-    const startDate = new Date(2025, 4, 13); // 13 травня 2025 (місяці від 0)
-    const endDate = new Date(2025, 9, 13);   // 13 жовтня 2025 (через 5 місяців)
+    const startDate = new Date(2025, 4, 13); // 13 травня 2025
+    const endDate = new Date(2025, 9, 13);   // 13 жовтня 2025
 
     let currentDate = new Date(startDate);
     let counter = 0;
 
+    // Створюємо масив записів дат і кімнат
     while (currentDate <= endDate) {
-      const day = String(currentDate.getDate()).padStart(2, '0');
-      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const day = String(currentDate.getDate()).padStart(2, "0");
+      const month = String(currentDate.getMonth() + 1).padStart(2, "0");
       const year = currentDate.getFullYear();
       const formattedDate = `${day}.${month}.${year}`;
 
@@ -110,37 +127,46 @@
       counter++;
     }
 
-    // Побудова таблиці
-    function generateTable() {
-      entries.forEach(entry => {
+    // Функція створення рядків таблиці і завантаження стану чекбоксів з Firestore
+    async function generateTable() {
+      for (const entry of entries) {
         const row = document.createElement("tr");
         const id = `${entry.date}_${entry.room}`.replace(/\s+/g, "_");
-        const isChecked = localStorage.getItem(id) === "true";
+
+        // Отримуємо документ з Firestore
+        const docRef = doc(db, "cleaning_schedule", id);
+        const docSnap = await getDoc(docRef);
+
+        const isChecked = docSnap.exists() ? docSnap.data().is_cleaned : false;
 
         row.innerHTML = `
           <td>${entry.date}</td>
           <td>${entry.room}</td>
           <td><input type="checkbox" id="${id}" ${isChecked ? "checked" : ""}></td>
         `;
+
         tableBody.appendChild(row);
-      });
+      }
     }
 
     generateTable();
 
-    // Збереження в localStorage
-    document.getElementById("cleaningForm").addEventListener("submit", function (e) {
+    // Обробник натискання кнопки збереження
+    document.getElementById("cleaningForm").addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      entries.forEach(entry => {
+      for (const entry of entries) {
         const id = `${entry.date}_${entry.room}`.replace(/\s+/g, "_");
         const checkbox = document.getElementById(id);
-        localStorage.setItem(id, checkbox.checked);
-      });
+        const docRef = doc(db, "cleaning_schedule", id);
+
+        await setDoc(docRef, { is_cleaned: checkbox.checked });
+      }
 
       showSuccessMessage();
     });
 
+    // Показати повідомлення про успішне збереження
     function showSuccessMessage() {
       const msg = document.getElementById("successMessage");
       msg.style.display = "block";
