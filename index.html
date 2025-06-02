@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Графік Прибирань</title>
     <style>
-        /* Загальний стиль */
         body {
             font-family: 'Arial', sans-serif;
             margin: 0;
@@ -14,7 +13,6 @@
             color: #333;
         }
 
-        /* Заголовок */
         h2 {
             text-align: center;
             margin: 20px 0;
@@ -22,7 +20,6 @@
             color: #4CAF50;
         }
 
-        /* Контейнер для всього контенту */
         .container {
             width: 80%;
             max-width: 900px;
@@ -33,7 +30,6 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Стиль для повідомлення */
         #successMessage {
             display: block;
             padding: 10px;
@@ -47,7 +43,6 @@
             transition: opacity 0.5s ease-in-out, visibility 0s 0.5s;
         }
 
-        /* Стиль таблиці */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -71,14 +66,12 @@
             font-size: 1rem;
         }
 
-        /* Стиль для чекбоксів */
         input[type="checkbox"] {
             width: 20px;
             height: 20px;
             margin: 0;
         }
 
-        /* Стиль для кнопки */
         input[type="submit"] {
             background-color: #4CAF50;
             color: white;
@@ -95,7 +88,6 @@
             background-color: #45a049;
         }
 
-        /* Мобільна адаптація */
         @media screen and (max-width: 600px) {
             .container {
                 width: 95%;
@@ -128,73 +120,68 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const startDate = new Date('2025-07-10'); // Початок графіку
-        const daysToGenerate = 90;  // Генерація на три місяці
-        const entries = [];
-        const rooms = ['Кімната 1', 'Кімната 2', 'Кімната 3'];
+        window.addEventListener('DOMContentLoaded', async () => {
+            const startDate = new Date('2025-07-10');
+            const daysToGenerate = 90;
+            const entries = [];
+            const rooms = ['Кімната 1', 'Кімната 2', 'Кімната 3'];
 
-        // Генерація графіку
-        for (let i = 0; i < daysToGenerate; i += 2) {
-            const date = new Date(startDate);
-            date.setDate(startDate.getDate() + i);
-            const roomIndex = (i / 2) % rooms.length;
-            const room = rooms[roomIndex];
+            for (let i = 0; i < daysToGenerate; i += 2) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                const roomIndex = (i / 2) % rooms.length;
+                const room = rooms[roomIndex];
 
-            // Форматування дати у форматі DD.MM.YYYY
-            const dateStr = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
-            
-            entries.push({ date: dateStr, room: room });
-        }
+                const dateStr = `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}.${date.getFullYear()}`;
+                entries.push({ date: dateStr, room });
+            }
 
-        // Заповнення таблиці
-        const tableBody = document.querySelector('tbody');
-        entries.forEach(entry => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${entry.date}</td>
-                <td>${entry.room}</td>
-                <td><input type="checkbox" id="${entry.date}_${entry.room}"></td>
-            `;
-            tableBody.appendChild(row);
+            const tableBody = document.querySelector('tbody');
+            for (const entry of entries) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${entry.date}</td>
+                    <td>${entry.room}</td>
+                    <td><input type="checkbox" id="${entry.date}_${entry.room}"></td>
+                `;
+                tableBody.appendChild(row);
 
-            const checkbox = document.getElementById(`${entry.date}_${entry.room}`);
-            const docRef = doc(db, 'cleaning_schedule', `${entry.date}_${entry.room}`);
-            getDoc(docRef).then(docSnap => {
+                const checkbox = document.getElementById(`${entry.date}_${entry.room}`);
+                const docRef = doc(db, 'cleaning_schedule', `${entry.date}_${entry.room}`);
+                const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     checkbox.checked = docSnap.data().is_cleaned;
                 }
+            }
+
+            const form = document.getElementById('cleaningForm');
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                for (const entry of entries) {
+                    const checkbox = document.getElementById(`${entry.date}_${entry.room}`);
+                    const isCleaned = checkbox.checked;
+                    const docRef = doc(db, 'cleaning_schedule', `${entry.date}_${entry.room}`);
+                    try {
+                        await setDoc(docRef, { is_cleaned: isCleaned });
+                    } catch (error) {
+                        console.error("Помилка збереження:", error);
+                    }
+                }
+
+                showSuccessMessage();
             });
+
+            function showSuccessMessage() {
+                const successMessage = document.getElementById('successMessage');
+                successMessage.style.visibility = 'visible';
+                successMessage.style.opacity = '1';
+                setTimeout(() => {
+                    successMessage.style.opacity = '0';
+                    successMessage.style.visibility = 'hidden';
+                }, 3000);
+            }
         });
-
-        // Обробка збереження даних
-        document.getElementById('cleaningForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-
-            entries.forEach(entry => {
-                const checkbox = document.getElementById(`${entry.date}_${entry.room}`);
-                const isCleaned = checkbox.checked;
-                const docRef = doc(db, 'cleaning_schedule', `${entry.date}_${entry.room}`);
-                setDoc(docRef, {
-                    is_cleaned: isCleaned
-                }).then(() => {
-                    showSuccessMessage();
-                }).catch((error) => {
-                    console.error("Error adding document: ", error);
-                });
-            });
-        });
-
-        // Функція для показу повідомлення про успіх
-        function showSuccessMessage() {
-            const successMessage = document.getElementById('successMessage');
-            successMessage.style.visibility = 'visible';
-            successMessage.style.opacity = '1';
-
-            setTimeout(() => {
-                successMessage.style.opacity = '0';
-                successMessage.style.visibility = 'hidden';
-            }, 3000);
-        }
     </script>
 </head>
 <body>
@@ -211,7 +198,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Рядки додаються динамічно -->
+                    <!-- Динамічні рядки -->
                 </tbody>
             </table>
             <input type="submit" value="Зберегти">
